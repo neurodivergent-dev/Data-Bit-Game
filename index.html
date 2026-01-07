@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DATA-BIT // TURKCE v6.6</title>
+  <style>
+    :root { 
+      --c-bg: #020406;
+      --c-card: rgba(10, 20, 30, 0.85);
+      --c-border: rgba(64, 224, 208, 0.3);
+      --c-prim: #0ff;
+      --c-sec: #bc13fe;
+      --c-warn: #fc0;
+      --c-danger: #f05;
+      --c-success: #0f8;
+      font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    }
+    
+    * { box-sizing: border-box; user-select: none; }
+
+    body {
+      margin: 0; background-color: var(--c-bg); color: #dbeeff;
+      overflow: hidden; height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      perspective: 1000px;
+    }
+
+    /* --- MATRIX CANVAS --- */
+    #matrixCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; opacity: 0.15; pointer-events: none; }
+    
+    .scanlines {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      background-size: 100% 4px, 6px 100%;
+      pointer-events: none; z-index: 999; opacity: 0.6;
+    }
+
+    .scene { width: 100%; max-width: 1100px; transition: transform 0.1s ease-out; transform-style: preserve-3d; }
+
+    .wrap {
+      display: flex; gap: 20px; background: var(--c-card); border: 1px solid var(--c-border);
+      padding: 24px; border-radius: 12px; box-shadow: 0 0 40px rgba(0, 255, 255, 0.15);
+      backdrop-filter: blur(12px); position: relative;
+    }
+
+    .col-main { flex: 2; display: flex; flex-direction: column; gap: 20px; }
+    .col-side { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+
+    h1 { margin: 0; font-size: 28px; color: var(--c-prim); text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 15px rgba(0,255,255,0.6); }
+
+    /* --- PANELS & GRID --- */
+    .panel { border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
+    
+    .panel-head { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.5); display: flex; justify-content: space-between; }
+
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .cell {
+      aspect-ratio: 1; background: rgba(0, 255, 255, 0.03); border: 1px solid rgba(0, 255, 255, 0.15);
+      border-radius: 8px; cursor: pointer; position: relative; transition: all 0.2s;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .cell:hover { background: rgba(0, 255, 255, 0.1); border-color: var(--c-prim); transform: scale(1.05); z-index: 10; box-shadow: 0 0 20px rgba(0,255,255,0.2); }
+    .cell.active { border-color: var(--c-prim); box-shadow: 0 0 0 2px var(--c-prim), 0 0 25px rgba(0, 255, 255, 0.3); background: rgba(0, 255, 255, 0.1); }
+    
+    /* SPECIAL CELLS */
+    .cell.wall { 
+      background: repeating-linear-gradient(45deg, rgba(255,255,255,0.03), rgba(255,255,255,0.03) 10px, transparent 10px, transparent 20px);
+      border-color: rgba(255,255,255,0.1); opacity: 0.6; cursor: not-allowed;
+    }
+    .cell.mine { border-color: var(--c-danger); background: rgba(255, 0, 85, 0.15); animation: glitch 0.2s infinite; }
+    .cell.target { border-color: var(--c-warn); animation: pulse 1.5s infinite; }
+    
+    .cell .addr { position: absolute; top: 4px; left: 6px; font-size: 9px; opacity: 0.5; font-family: monospace; }
+    .cell .icon { font-size: 32px; z-index: 2; filter: drop-shadow(0 0 8px rgba(0,0,0,0.5)); }
+
+    @keyframes pulse { 50% { box-shadow: inset 0 0 30px rgba(255, 204, 0, 0.3); border-color: #fff; } }
+    @keyframes glitch { 0% { transform: translate(1px); } 50% { transform: translate(-1px); } }
+
+    /* --- UI ELEMENTS --- */
+    .stat-row { display: flex; gap: 10px; align-items: center; font-family: monospace; font-size: 12px; }
+    .bar-bg { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; width: 100%; transition: width 0.3s; }
+
+    .action-row { display: flex; gap: 10px; margin-top: auto; }
+    .btn-act {
+      flex: 1; padding: 15px; background: rgba(0, 255, 255, 0.05); border: 1px solid var(--c-prim);
+      color: var(--c-prim); font-weight: bold; cursor: pointer; text-transform: uppercase;
+      letter-spacing: 1px; border-radius: 6px; transition: 0.2s;
+    }
+    .btn-act:hover:not(:disabled) { background: rgba(0, 255, 255, 0.2); border-color: #fff; box-shadow: 0 0 20px rgba(0, 255, 255, 0.3); }
+    .btn-act:disabled { opacity: 0.3; filter: grayscale(1); }
+
+    .obj-box { 
+      background: linear-gradient(90deg, rgba(255, 204, 0, 0.1), transparent); 
+      border-left: 3px solid var(--c-warn);
+      padding: 12px; margin-bottom: 10px; color: var(--c-warn); 
+      font-size: 13px; font-weight: bold; letter-spacing: 0.5px;
+    }
+
+    /* --- SHOP --- */
+    .shop-btn {
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      padding: 12px; border-radius: 6px; cursor: pointer; transition: 0.2s;
+      color: #ddd; font-family: monospace; font-size: 12px;
+    }
+    .shop-btn:hover:not(:disabled) { border-color: var(--c-prim); background: rgba(0,255,255,0.1); transform: translateX(5px); }
+    .shop-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .shop-flash { animation: flashGreen 0.3s; }
+    @keyframes flashGreen { 0% { background: var(--c-success); color: #000; } }
+
+    /* --- MODAL --- */
+    #modalOverlay {
+      position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.9); z-index: 1000;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .modal-box {
+      width: 500px; border: 1px solid var(--c-prim); background: var(--c-bg);
+      padding: 40px; border-radius: 16px; text-align: center; box-shadow: 0 0 60px rgba(0,255,255,0.15);
+    }
+    .modal-btn {
+      margin-top: 25px; padding: 12px 30px; background: var(--c-prim); border: none;
+      color: #000; font-weight: bold; cursor: pointer; letter-spacing: 2px; border-radius: 4px;
+      transition: 0.2s;
+    }
+    .modal-btn:hover { background: #fff; box-shadow: 0 0 20px #fff; }
+
+  </style>
+</head>
+<body>
+
+<canvas id="matrixCanvas"></canvas>
+<div class="scanlines"></div>
+
+<div id="modalOverlay">
+  <div class="modal-box">
+    <div id="mTitle" style="font-size: 28px; color: var(--c-prim); margin-bottom: 15px; font-weight: bold; text-shadow:0 0 10px var(--c-prim);">SİSTEM BAĞLANTISI</div>
+    <div id="mText" style="font-size: 14px; line-height: 1.6; margin-bottom: 25px; color:#aaa;">Nöral El Sıkışma Başlatılıyor...</div>
+    <button class="modal-btn" id="mBtn">BAĞLANTIYI KUR</button>
+  </div>
+</div>
+
+<div class="scene" id="scene">
+  <div class="wrap">
+    
+    <div class="col-main">
+      <h1>DATA-BIT <span id="lvlBadge" style="font-size: 12px; background: var(--c-sec); color: #fff; padding: 4px 10px; border-radius: 4px; margin-left: 10px; vertical-align: middle; box-shadow: 0 0 10px var(--c-sec);">SEKTÖR 1</span></h1>
+      
+      <div class="obj-box" id="objTxt">GÖREV: VERİYİ GÜVENLİĞE AL</div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span id="subTitle">AĞ HARİTASI</span>
+          <span id="timerTxt" style="color:var(--c-warn); font-weight:bold;">--:--</span>
+        </div>
+        <div class="grid" id="grid"></div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn-act" id="btnPick">YÜKLE (AL)</button>
+        <button class="btn-act" id="btnDrop" style="border-color: var(--c-warn); color: var(--c-warn);">YERLEŞTİR (BIRAK)</button>
+      </div>
+    </div>
+
+    <div class="col-side">
+      <div class="panel">
+        <div class="panel-head">YAŞAMSAL</div>
+        <div class="stat-row">
+          <span>BÜTÜNLÜK</span>
+          <div class="bar-bg"><div class="bar-fill" id="hpBar" style="background:var(--c-danger)"></div></div>
+        </div>
+        <div style="font-size: 24px; font-weight: bold; color: var(--c-warn); margin: 5px 0; text-shadow: 0 0 10px rgba(255, 204, 0, 0.4);" id="credVal">0¢</div>
+        <div style="font-size: 11px; opacity: 0.6;">MEVCUT KREDİ</div>
+      </div>
+
+      <div class="panel" style="flex:1">
+        <div class="panel-head">YÜKSELTMELER</div>
+        <button id="buyHeal" class="shop-btn">
+          <span>❤️ Tamir (+30%)</span>
+          <span style="color:var(--c-warn); font-weight:bold;">50¢</span>
+        </button>
+        <button id="buyFreeze" class="shop-btn">
+          <span>❄️ Dondur (5s)</span>
+          <span style="color:var(--c-warn); font-weight:bold;">80¢</span>
+        </button>
+        <button id="buyTime" class="shop-btn">
+          <span>⚡ Zaman (+10s)</span>
+          <span style="color:var(--c-warn); font-weight:bold;">60¢</span>
+        </button>
+      </div>
+      
+      <div class="panel">
+        <div class="panel-head">BELLEK DURUMU</div>
+        <div id="accTxt" style="text-align:center; font-weight:bold; color:var(--c-prim); font-size:16px; padding:10px;">BOŞ</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // --- AUDIO ---
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let ctx = null;
+  function sfx(f, type, len) {
+    if(!ctx) return;
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type = type; o.frequency.value = f;
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + len);
+    o.stop(ctx.currentTime + len);
+  }
+
+  // --- NARRATIVE LEVELS (TURKISH) ---
+  const LEVELS = [
+    { 
+      map: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], 
+      name: "NEON GEÇİT",
+      story: "Sistem seni fark etti ama henüz bir tehdit olarak görmüyor. Sessizce sız ve veriyi taşı.",
+      txt: "Sessiz Sızma: Veriyi hedefe ulaştır.", mode: "std", t: 25 
+    },
+    { 
+      map: [0,0,0,0, 1,1,1,0, 0,0,0,0, 0,0,0,0], 
+      name: "VERİ ÇÖPLÜĞÜ",
+      story: "Eski firewall kalıntıları yolu kapatmış. Bilinmeyen Varlık fısıldıyor: 'Burası sistemin çöplüğü, dikkat et.'",
+      txt: "Engel Algılandı: Duvarların (✖) etrafından dolaş.", mode: "std", t: 22 
+    },
+    { 
+      map: [0,2,0,0, 0,0,2,0, 2,0,0,0, 0,0,0,0], 
+      name: "NÖRAL MAYINLAR",
+      story: "Sistem savunması aktifleşiyor. Mayınlar sinir uçlarına bağlı. Bir hata tüm bağlantını koparabilir.",
+      txt: "Mayın Tarlası: Kırmızı bölgelerden (💣) uzak dur.", mode: "std", t: 20 
+    },
+    { 
+      map: [0,1,0,0, 0,1,0,0, 0,1,0,0, 0,0,0,0], 
+      name: "ŞİFRELİ KASA",
+      story: "Bilinmeyen Varlık: 'Kilitli bir kapıya geldik. Anahtarı bulmalısın yoksa içeri giremeyiz.'",
+      txt: "Şifreli Sektör: Önce 🔑 Anahtarı al, sonra 🔒 Kilidin üzerine bırak.", mode: "enc", t: 28 
+    },
+    { 
+      map: [1,0,0,1, 1,0,0,1, 1,0,0,1, 0,0,0,0], 
+      name: "İP ÜSTÜNDE",
+      story: "Veri akışı daralıyor. Tek bir yanlış adım verinin boşlukta kaybolmasına neden olur.",
+      txt: "Dar Bant: Hassas yönlendirme gerekiyor.", mode: "std", t: 18 
+    },
+    { 
+      map: [0,0,0,0, 0,1,1,0, 0,1,1,0, 0,0,0,0], 
+      name: "ÇEKİRDEK KALKANI",
+      story: "Çekirdek koruması devrede. Bilinmeyen Varlık: 'Neredeyse oradayız, ama sistem bizi dışarı atmaya çalışıyor.'",
+      txt: "Blokaj: Merkezi yolu açmak için şifreyi çöz.", mode: "enc", t: 30 
+    },
+    { 
+      map: [0,2,2,0, 0,0,0,0, 0,1,1,0, 0,0,0,0], 
+      name: "KARARSIZ YÜKLEME",
+      story: "Veri aşırı ısındı! Bilinmeyen Varlık: 'Elinde tutma! Patlamak üzere!'",
+      txt: "Kararsız Veri: Aldıktan sonra 5 saniye içinde teslim et (⚠️)!", mode: "vol", t: 22 
+    },
+    { 
+      map: [0,0,1,0, 1,0,1,0, 0,0,0,0, 0,1,1,0], 
+      name: "LABİRENT",
+      story: "Sistem algoritması seni bir döngüye sokmaya çalışıyor. Yolu kendin bulmalısın.",
+      txt: "Karmaşık Rota: Labirentten çıkış yap.", mode: "std", t: 25 
+    },
+    { 
+      map: [2,1,1,2, 0,0,0,0, 2,1,1,2, 0,0,0,0], 
+      name: "KERNEL KALESİ",
+      story: "Son savunma hattı. Bilinmeyen Varlık: 'Eğer bunu başarırsan, sistem bizim olacak.'",
+      txt: "Ağır Güvenlik: Mayınlar ve duvarlar arasında ilerle.", mode: "enc", t: 30 
+    },
+    { 
+      map: [0,0,0,0, 0,1,1,0, 0,0,0,0, 0,2,2,0], 
+      name: "ÇEKİRDEK İHLALİ",
+      story: "Giriş yaptık! Sistem Cellat Protokolünü (☠️) başlattı. Kaç ya da yok ol!",
+      txt: "ÇEKİRDEK İHLALİ: Avcı-Katil aktif! Hızlı ol!", mode: "boss", t: 30 
+    }
+  ];
+
+  const G = {
+    active: false, lvlIdx: 0, hp: 100, credits: 0,
+    ram: [], sel: 0, acc: null,
+    target: -1, payloadId: null,
+    keyLoc: -1, hazardLoc: -1,
+    mode: "std", timer: 0, loop: null, volatileT: 0
+  };
+
+  // --- RENDER ---
+  function render() {
+    document.getElementById('hpBar').style.width = G.hp + "%";
+    document.getElementById('credVal').textContent = G.credits + "¢";
+    document.getElementById('timerTxt').textContent = G.timer.toFixed(1) + "s";
+    document.getElementById('lvlBadge').textContent = "SEKTÖR " + (G.lvlIdx + 1);
+    document.getElementById('subTitle').textContent = LEVELS[G.lvlIdx].name;
+    
+    document.getElementById('buyHeal').disabled = !G.active || G.credits < 50;
+    document.getElementById('buyFreeze').disabled = !G.active || G.credits < 80;
+    document.getElementById('buyTime').disabled = !G.active || G.credits < 60;
+
+    const accEl = document.getElementById('accTxt');
+    if(G.acc) {
+      if(G.acc === "KEY") {
+        accEl.textContent = "🔑 ANAHTAR";
+        accEl.style.color = "var(--c-warn)";
+      } else {
+        accEl.textContent = "📦 " + G.acc + (G.mode==="vol" ? ` (⚠️ ${5-G.volatileT}s)` : "");
+        accEl.style.color = G.mode==="vol" ? "var(--c-danger)" : "var(--c-prim)";
+      }
+    } else {
+      accEl.textContent = "BOŞ"; accEl.style.color = "#666";
+    }
+
+    const grid = document.getElementById('grid');
+    grid.innerHTML = "";
+    G.ram.forEach((v, i) => {
+      const d = document.createElement('div');
+      let c = "cell"; let ic = "";
+      if(v === 1) { c += " wall"; ic = "✖"; }
+      else if(v === 2) { c += " mine"; ic = "💣"; }
+      if(i === G.target) { c += " target"; if(v===0) ic="🎯"; }
+      if(i === G.hazardLoc) { c += " hazard"; ic="☠️"; }
+      if(v === G.payloadId) ic = (G.mode==="enc" && G.keyLoc!==-2) ? "🔒" : "📦";
+      if(v === "KEY") ic = "🔑";
+      if(i === G.sel) c += " active";
+      d.className = c;
+      d.innerHTML = `<span class="addr">0x${i.toString(16).toUpperCase()}</span><span class="icon">${ic}</span>`;
+      d.onclick = () => { if(v!==1) { G.sel = i; sfx(400, 'sine', 0.05); render(); } else sfx(100,'sawtooth',0.1); };
+      grid.appendChild(d);
+    });
+  }
+
+  function startLevel() {
+    if(G.lvlIdx >= LEVELS.length) { alert("TÜM GÖREVLER TAMAMLANDI!"); location.reload(); return; }
+    const cfg = LEVELS[G.lvlIdx];
+    G.active = true; G.ram = [...cfg.map]; G.mode = cfg.mode; G.timer = cfg.t;
+    G.acc = null; G.volatileT = 0; G.hazardLoc = -1; G.keyLoc = -1;
+    do { G.target = Math.floor(Math.random()*16); } while(G.ram[G.target] !== 0);
+    let pl; do { pl = Math.floor(Math.random()*16); } while(G.ram[pl] !== 0 || pl === G.target);
+    G.payloadId = Math.floor(Math.random()*900)+100;
+    G.ram[pl] = G.payloadId;
+    if(G.mode === "enc") {
+      let k; do { k = Math.floor(Math.random()*16); } while(G.ram[k] !== 0 || k === G.target || k === pl);
+      G.keyLoc = k; G.ram[k] = "KEY";
+    }
+    document.getElementById('objTxt').textContent = "GÖREV: " + cfg.txt;
+    render();
+    clearInterval(G.loop);
+    G.loop = setInterval(tick, 1000);
+  }
+
+  function tick() {
+    if(!G.active) return;
+    G.timer--;
+    if(G.mode === "boss" && G.timer % 2 === 0) {
+      if(G.hazardLoc !== -1 && G.ram[G.hazardLoc] === 0) G.ram[G.hazardLoc] = 0; 
+      let h; do { h = Math.floor(Math.random()*16); } while(G.ram[h] !== 0 || h === G.target || h === G.payloadId);
+      G.hazardLoc = h; if(G.sel === G.hazardLoc) dmg(15);
+    }
+    if(G.mode === "vol" && G.acc === G.payloadId) {
+      G.volatileT++; if(G.volatileT > 5) { dmg(50); G.acc = null; sfx(100,'sawtooth',0.5); }
+    }
+    if(G.timer <= 0) fail("ZAMAN AŞIMI");
+    render();
+  }
+
+  function dmg(n) { G.hp -= n; sfx(150,'sawtooth',0.2); if(G.hp<=0) fail("SİSTEM ÇÖKTÜ"); render(); }
+  
+  function fail(r) {
+    G.active = false; clearInterval(G.loop); alert("BAŞARISIZ: " + r);
+    G.hp=100; G.ram=[]; showModal(`SEKTÖR ${G.lvlIdx+1} TEKRAR`, LEVELS[G.lvlIdx].txt);
+  }
+
+  function win() {
+    G.active = false; clearInterval(G.loop);
+    sfx(600,'square',0.1); setTimeout(()=>sfx(900,'square',0.2),100);
+    G.credits += 60 + (G.lvlIdx*5); G.lvlIdx++;
+    if(G.lvlIdx >= LEVELS.length) showModal("SİSTEM HACKLENDİ", "Tüm sistem kontrolün altında. Bilinmeyen Varlık: 'Başardık.'");
+    else showModal(`SEKTÖR ${G.lvlIdx+1}`, LEVELS[G.lvlIdx].txt);
+  }
+
+  function showModal(t, m) {
+    const s = LEVELS[G.lvlIdx] || { name: t, story: m };
+    document.getElementById('mTitle').textContent = s.name;
+    document.getElementById('mText').innerHTML = s.story;
+    document.getElementById('modalOverlay').style.display = 'flex';
+  }
+
+  document.getElementById('mBtn').onclick = () => { if(!ctx) { ctx = new AC(); } document.getElementById('modalOverlay').style.display = 'none'; startLevel(); };
+
+  document.getElementById('btnPick').onclick = () => {
+    if(!G.active || G.acc) return;
+    const v = G.ram[G.sel];
+    if(v === 2) { dmg(30); return; }
+    if(v === 1) return;
+    if(v === "KEY") { G.acc="KEY"; G.ram[G.sel]=0; sfx(800, 'square', 0.1); render(); }
+    else if(v === G.payloadId) {
+      if(G.mode==="enc" && G.keyLoc!==-2) { sfx(150, 'sawtooth', 0.1); alert("KİLİTLİ! Anahtarı bul."); return; }
+      G.acc = v; G.ram[G.sel]=0; G.volatileT=0; sfx(600, 'square', 0.1); render();
+    }
+  };
+
+  document.getElementById('btnDrop').onclick = () => {
+    if(!G.active || !G.acc) return;
+    const v = G.ram[G.sel];
+    if(G.acc==="KEY" && v===G.payloadId && G.mode==="enc") { G.keyLoc = -2; G.acc=null; sfx(1200, 'triangle', 0.2); render(); return; }
+    if(v === 1) return;
+    if(v === 2) { dmg(40); G.ram[G.sel]=0; }
+    else if(v !== 0 && v !== G.target) return;
+    G.ram[G.sel] = G.acc;
+    if(G.sel === G.target && G.acc === G.payloadId) { win(); G.acc=null; }
+    else { if(G.acc===G.payloadId && G.sel!==G.target) dmg(10); G.acc = null; sfx(300, 'sine', 0.1); render(); }
+  };
+
+  function buy(id, cost, fn) { if(G.credits>=cost){ G.credits-=cost; fn(); sfx(800,'sine',0.1); const b=document.getElementById(id); b.classList.add('shop-flash'); setTimeout(()=>b.classList.remove('shop-flash'),300); render(); } }
+  document.getElementById('buyHeal').onclick = ()=>buy('buyHeal', 50, ()=>G.hp=Math.min(100,G.hp+30));
+  document.getElementById('buyTime').onclick = ()=>buy('buyTime', 60, ()=>G.timer+=10);
+  document.getElementById('buyFreeze').onclick = ()=>buy('buyFreeze', 80, ()=>G.timer+=5);
+
+  const mCanvas = document.getElementById('matrixCanvas');
+  const mCtx = mCanvas.getContext('2d');
+  mCanvas.width = window.innerWidth; mCanvas.height = window.innerHeight;
+  const colW = 20; const mCols = Math.floor(mCanvas.width / colW); const ypos = Array(mCols).fill(0);
+  
+  function drawMatrix() {
+    mCtx.fillStyle = 'rgba(0, 1, 6, 0.1)'; mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+    mCtx.fillStyle = '#0f0'; mCtx.font = '15px monospace';
+    ypos.forEach((y, i) => {
+      const text = String.fromCharCode(Math.random() * 128);
+      const x = i * colW;
+      mCtx.fillText(text, x, y);
+      if (y > 100 + Math.random() * 10000) ypos[i] = 0;
+      else ypos[i] = y + 20;
+    });
+  }
+  setInterval(drawMatrix, 50);
+
+  document.addEventListener("mousemove", (e) => {
+    const x = (window.innerWidth/2 - e.pageX)/60; const y = (window.innerHeight/2 - e.pageY)/60;
+    document.getElementById('scene').style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+  });
+
+  showStory(); // Start first modal
+});
+</script>
+</body>
+</html>
