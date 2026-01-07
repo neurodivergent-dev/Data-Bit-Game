@@ -213,67 +213,67 @@ document.addEventListener("DOMContentLoaded", () => {
     o.stop(ctx.currentTime + len);
   }
 
-  // --- NARRATIVE LEVELS (TURKISH) ---
+  // --- NARRATIVE LEVELS (TURKISH - EXTENDED CUT) ---
   const LEVELS = [
     { 
       map: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], 
-      name: "NEON GEÇİT",
-      story: "Sistem seni fark etti ama henüz bir tehdit olarak görmüyor. Sessizce sız ve veriyi taşı.",
-      txt: "Sessiz Sızma: Veriyi hedefe ulaştır.", mode: "std", t: 25 
+      name: "BAĞLANTI: BAŞLANGIÇ",
+      story: "<span style='color:#0ff'>REHBER:</span> Duyuyor musun? Bağlantı stabil. Ben <b>'Zero'</b>. Bu sistem, insanlığın kolektif hafızasını hapsediyor. İlk güvenlik duvarı zayıf. Sız ve paketi al. İz bırakma.",
+      txt: "Sızma Protokolü: Veriyi al, hedefe götür.", mode: "std", t: 25 
     },
     { 
       map: [0,0,0,0, 1,1,1,0, 0,0,0,0, 0,0,0,0], 
-      name: "VERİ ÇÖPLÜĞÜ",
-      story: "Eski firewall kalıntıları yolu kapatmış. Bilinmeyen Varlık fısıldıyor: 'Burası sistemin çöplüğü, dikkat et.'",
+      name: "DİJİTAL MEZARLIK",
+      story: "<span style='color:#0ff'>REHBER:</span> Burası 'Yığın'. Silinen dosyalar ve unutulmuş anılar buraya atılır. Önündeki duvarlar basit engeller değil, bozulmuş veri blokları. Etraflarından dolaş.",
       txt: "Engel Algılandı: Duvarların (✖) etrafından dolaş.", mode: "std", t: 22 
     },
     { 
       map: [0,2,0,0, 0,0,2,0, 2,0,0,0, 0,0,0,0], 
-      name: "NÖRAL MAYINLAR",
-      story: "Sistem savunması aktifleşiyor. Mayınlar sinir uçlarına bağlı. Bir hata tüm bağlantını koparabilir.",
-      txt: "Mayın Tarlası: Kırmızı bölgelerden (💣) uzak dur.", mode: "std", t: 20 
+      name: "SİNİR AĞI MAYINLARI",
+      story: "<span style='color:#f05'>SİSTEM UYARISI:</span> <i>Yabancı yazılım tespit edildi. Savunma protokolü 3 devreye alındı.</i><br><br><span style='color:#0ff'>REHBER:</span> Dikkat et! Yere nöral mayınlar döşemişler. Basarsan beyninle olan bağlantın kopar.",
+      txt: "Tehlike Bölgesi: Mayınlardan (💣) uzak dur.", mode: "std", t: 20 
     },
     { 
       map: [0,1,0,0, 0,1,0,0, 0,1,0,0, 0,0,0,0], 
-      name: "ŞİFRELİ KASA",
-      story: "Bilinmeyen Varlık: 'Kilitli bir kapıya geldik. Anahtarı bulmalısın yoksa içeri giremeyiz.'",
-      txt: "Şifreli Sektör: Önce 🔑 Anahtarı al, sonra 🔒 Kilidin üzerine bırak.", mode: "enc", t: 28 
+      name: "KRİPTOLU KASA",
+      story: "<span style='color:#0ff'>REHBER:</span> Bu veri askeri düzeyde şifrelenmiş. Kaba kuvvet işe yaramaz. Sektörde bir yerlerde bir <b>Erişim Anahtarı</b> olmalı. Önce onu bul, sonra kapıyı aç.",
+      txt: "Kilitli Veri: 🔑 Anahtarı bul, 🔒 Kilidi aç.", mode: "enc", t: 35 
     },
     { 
       map: [1,0,0,1, 1,0,0,1, 1,0,0,1, 0,0,0,0], 
-      name: "İP ÜSTÜNDE",
-      story: "Veri akışı daralıyor. Tek bir yanlış adım verinin boşlukta kaybolmasına neden olur.",
-      txt: "Dar Bant: Hassas yönlendirme gerekiyor.", mode: "std", t: 18 
+      name: "DARBOĞAZ",
+      story: "<span style='color:#0ff'>REHBER:</span> Bant genişliği daralıyor. Sistem bizi sıkıştırmaya çalışıyor. Hata payımız yok. Tek bir yanlış hamle verinin boşlukta kaybolmasına neden olur. Odaklan.",
+      txt: "Hassas Geçiş: Dar koridoru kullan.", mode: "std", t: 20 
     },
     { 
       map: [0,0,0,0, 0,1,1,0, 0,1,1,0, 0,0,0,0], 
-      name: "ÇEKİRDEK KALKANI",
-      story: "Çekirdek koruması devrede. Bilinmeyen Varlık: 'Neredeyse oradayız, ama sistem bizi dışarı atmaya çalışıyor.'",
-      txt: "Blokaj: Merkezi yolu açmak için şifreyi çöz.", mode: "enc", t: 30 
+      name: "ATEŞ DUVARI",
+      story: "<span style='color:#f05'>SİSTEM:</span> <i>Erişim reddedildi. Karantina protokolü başlatılıyor.</i><br><br><span style='color:#0ff'>REHBER:</span> Bizi izole etmeye çalışıyorlar. Anahtarı kap ve bu ateş duvarını aş!",
+      txt: "Blokaj: Merkezi yolu açmak için şifreyi çöz.", mode: "enc", t: 32 
     },
     { 
       map: [0,2,2,0, 0,0,0,0, 0,1,1,0, 0,0,0,0], 
-      name: "KARARSIZ YÜKLEME",
-      story: "Veri aşırı ısındı! Bilinmeyen Varlık: 'Elinde tutma! Patlamak üzere!'",
-      txt: "Kararsız Veri: Aldıktan sonra 5 saniye içinde teslim et (⚠️)!", mode: "vol", t: 22 
+      name: "RADYOAKTİF VERİ",
+      story: "<span style='color:#0ff'>REHBER:</span> Lanet olsun! Bu veri paketi bozulmuş, aşırı ısınıyor! Onu eline aldığın an geri sayım başlar. Çok uzun süre tutarsan elinde patlar. Hızlı ol!",
+      txt: "KARARSIZ YÜK: Aldıktan sonra 5 saniye içinde teslim et (⚠️)!", mode: "vol", t: 25 
     },
     { 
       map: [0,0,1,0, 1,0,1,0, 0,0,0,0, 0,1,1,0], 
-      name: "LABİRENT",
-      story: "Sistem algoritması seni bir döngüye sokmaya çalışıyor. Yolu kendin bulmalısın.",
-      txt: "Karmaşık Rota: Labirentten çıkış yap.", mode: "std", t: 25 
+      name: "ALGORİTMA LABİRENTİ",
+      story: "<span style='color:#0ff'>REHBER:</span> Sistemin mantık çekirdeğine yaklaşıyoruz. Yollar sürekli değişiyor gibi görünüyor ama bir desen var. Algoritmayı çöz ve çıkışı bul.",
+      txt: "Karmaşık Rota: Labirentten çıkış yap.", mode: "std", t: 30 
     },
     { 
       map: [2,1,1,2, 0,0,0,0, 2,1,1,2, 0,0,0,0], 
       name: "KERNEL KALESİ",
-      story: "Son savunma hattı. Bilinmeyen Varlık: 'Eğer bunu başarırsan, sistem bizim olacak.'",
-      txt: "Ağır Güvenlik: Mayınlar ve duvarlar arasında ilerle.", mode: "enc", t: 30 
+      story: "<span style='color:#f05'>SİSTEM:</span> <i>Tehdit seviyesi: KRİTİK. Tüm savunma birimleri buraya yönlendirilsin.</i><br><br><span style='color:#0ff'>REHBER:</span> Bu son kapı. İçeride ne olduğunu bilmiyorum ama bizi istemedikleri kesin. Hazır ol.",
+      txt: "Ağır Güvenlik: Mayınlar ve duvarlar arasında ilerle.", mode: "enc", t: 35 
     },
     { 
       map: [0,0,0,0, 0,1,1,0, 0,0,0,0, 0,2,2,0], 
       name: "ÇEKİRDEK İHLALİ",
-      story: "Giriş yaptık! Sistem Cellat Protokolünü (☠️) başlattı. Kaç ya da yok ol!",
-      txt: "ÇEKİRDEK İHLALİ: Avcı-Katil aktif! Hızlı ol!", mode: "boss", t: 30 
+      story: "<span style='color:#f05'>SİSTEM ÇEKİRDEĞİ:</span> <b>SENİ GÖRÜYORUM. SEN BİR VİRÜSSÜN VE SİLİNECEKSİN.</b><br><br><span style='color:#0ff'>REHBER:</span> <b>AVCI-KATİL</b> aktifleşti! Kaçamazsın, onunla yüzleş ve veriyi sisteme enjekte et! BU SON ŞANSIMIZ!",
+      txt: "SON SAVAŞ: Avcı-Katil (☠️) peşinde! Hızlı ol!", mode: "boss", t: 40 
     }
   ];
 
