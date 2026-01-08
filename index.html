@@ -133,6 +133,12 @@
 <canvas id="matrixCanvas"></canvas>
 <div class="scanlines"></div>
 
+<div id="endTerminal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:2000; padding:40px; box-sizing:border-box; overflow-y:auto; font-family:'Courier New', monospace; color:#0f0; font-size:20px; line-height:1.4; text-shadow: 0 0 10px #0f0;">
+  <div id="endText"></div>
+  <span id="cursor" style="display:inline-block; width:12px; height:24px; background:#0f0; animation:blink 1s infinite; vertical-align:text-bottom;"></span>
+</div>
+<style>@keyframes blink { 50% { opacity: 0; } }</style>
+
 <div id="modalOverlay">
   <div class="modal-box">
     <div id="mTitle" style="font-size: 28px; color: var(--c-prim); margin-bottom: 15px; font-weight: bold; text-shadow:0 0 10px var(--c-prim);">SİSTEM BAĞLANTISI</div>
@@ -145,7 +151,10 @@
   <div class="wrap">
     
     <div class="col-main">
-      <h1>DATA-BIT <span id="lvlBadge" style="font-size: 12px; background: var(--c-sec); color: #fff; padding: 4px 10px; border-radius: 4px; margin-left: 10px; vertical-align: middle; box-shadow: 0 0 10px var(--c-sec);">SEKTÖR 1</span></h1>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h1>DATA-BIT <span id="lvlBadge" style="font-size: 12px; background: var(--c-sec); color: #fff; padding: 4px 10px; border-radius: 4px; margin-left: 10px; vertical-align: middle; box-shadow: 0 0 10px var(--c-sec);">SEKTÖR 1</span></h1>
+        <button id="btnMusic" style="background:transparent; border:1px solid var(--c-prim); color:var(--c-prim); cursor:pointer; font-family:monospace; padding:5px 10px; border-radius:4px;">🔇 SES: OFF</button>
+      </div>
       
       <div class="obj-box" id="objTxt">GÖREV: VERİYİ GÜVENLİĞE AL</div>
 
@@ -201,9 +210,20 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // --- AUDIO ---
+  // --- AUDIO & MUSIC ENGINE ---
   const AC = window.AudioContext || window.webkitAudioContext;
   let ctx = null;
+  let musicOn = false;
+  let nextNoteTime = 0;
+  let noteIdx = 0;
+  let lookahead = 25;
+  let scheduleAheadTime = 0.1;
+  let musicTimerID = null;
+
+  // Cyberpunk Scale (D Minor Pentatonic + adjustments)
+  const SCALE = [146.83, 174.61, 196.00, 220.00, 261.63, 293.66, 349.23]; // D3, F3, G3, A3, C4, D4, F4
+  const BASS_SCALE = [36.71, 43.65, 49.00, 55.00]; // D1, F1, G1, A1
+
   function sfx(f, type, len) {
     if(!ctx) return;
     const o = ctx.createOscillator(); const g = ctx.createGain();
@@ -212,6 +232,93 @@ document.addEventListener("DOMContentLoaded", () => {
     o.start(); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + len);
     o.stop(ctx.currentTime + len);
   }
+
+  // --- MUSIC SYNTHS ---
+  function playKick(t) {
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
+    g.gain.setValueAtTime(0.8, t);
+    g.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+    o.start(t); o.stop(t + 0.5);
+  }
+
+  function playSnare(t) {
+    const bufferSize = ctx.sampleRate * 0.5;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource(); noise.buffer = buffer;
+    const noiseFilter = ctx.createBiquadFilter(); noiseFilter.type = 'highpass'; noiseFilter.frequency.value = 1000;
+    const noiseEnv = ctx.createGain();
+    noise.connect(noiseFilter); noiseFilter.connect(noiseEnv); noiseEnv.connect(ctx.destination);
+    noiseEnv.gain.setValueAtTime(0.4, t); noiseEnv.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    noise.start(t);
+  }
+
+  function playBass(t, f) {
+    const o = ctx.createOscillator(); const g = ctx.createGain(); const flt = ctx.createBiquadFilter();
+    o.type = 'sawtooth'; o.frequency.value = f;
+    flt.type = 'lowpass'; flt.Q.value = 5;
+    o.connect(flt); flt.connect(g); g.connect(ctx.destination);
+    flt.frequency.setValueAtTime(f * 1.5, t);
+    flt.frequency.exponentialRampToValueAtTime(f * 0.5, t + 0.4);
+    g.gain.setValueAtTime(0.3, t); g.gain.setTargetAtTime(0, t, 0.1);
+    o.start(t); o.stop(t + 0.5);
+  }
+
+  function playArp(t, f) {
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    const del = ctx.createDelay(); const fdbk = ctx.createGain();
+    o.type = 'square'; o.frequency.value = f;
+    del.delayTime.value = 0.3; fdbk.gain.value = 0.4;
+    o.connect(g); g.connect(ctx.destination);
+    g.connect(del); del.connect(fdbk); fdbk.connect(del); del.connect(ctx.destination);
+    g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    o.start(t); o.stop(t + 0.5);
+  }
+
+  function scheduler() {
+    while (nextNoteTime < ctx.currentTime + scheduleAheadTime) {
+      scheduleNote(noteIdx, nextNoteTime);
+      nextNoteTime += 0.125; // 16th notes (120 BPM approx)
+      noteIdx = (noteIdx + 1) % 16;
+    }
+    musicTimerID = setTimeout(scheduler, lookahead);
+  }
+
+  function scheduleNote(step, t) {
+    // DRUMS
+    if(step % 4 === 0) playKick(t);
+    if(step % 8 === 4) playSnare(t);
+
+    // BASS (D F G A progression)
+    const root = BASS_SCALE[Math.floor((step/4)%4)];
+    if(step % 2 === 0) playBass(t, root);
+
+    // ARP (Random)
+    if(Math.random() > 0.4) {
+      const note = SCALE[Math.floor(Math.random() * SCALE.length)];
+      playArp(t, note * (Math.random()>0.5 ? 2 : 1));
+    }
+  }
+
+  function toggleMusic() {
+    if(!ctx) { ctx = new AC(); }
+    if(ctx.state === 'suspended') ctx.resume();
+    musicOn = !musicOn;
+    const btn = document.getElementById('btnMusic');
+    if(musicOn) {
+      btn.textContent = "🔊 SES: ON"; btn.style.background = "var(--c-prim)"; btn.style.color = "#000";
+      nextNoteTime = ctx.currentTime + 0.1;
+      scheduler();
+    } else {
+      btn.textContent = "🔇 SES: OFF"; btn.style.background = "transparent"; btn.style.color = "var(--c-prim)";
+      clearTimeout(musicTimerID);
+    }
+  }
+  document.getElementById('btnMusic').onclick = toggleMusic;
 
   // --- NARRATIVE LEVELS (TURKISH - EXTENDED CUT) ---
   const LEVELS = [
@@ -374,8 +481,64 @@ document.addEventListener("DOMContentLoaded", () => {
     G.active = false; clearInterval(G.loop);
     sfx(600,'square',0.1); setTimeout(()=>sfx(900,'square',0.2),100);
     G.credits += 60 + (G.lvlIdx*5); G.lvlIdx++;
-    if(G.lvlIdx >= LEVELS.length) showModal("SİSTEM HACKLENDİ", "Tüm sistem kontrolün altında. Bilinmeyen Varlık: 'Başardık.'");
+    if(G.lvlIdx >= LEVELS.length) endGameSequence();
     else showModal(`SEKTÖR ${G.lvlIdx+1}`, LEVELS[G.lvlIdx].txt);
+  }
+
+  function endGameSequence() {
+    document.getElementById('scene').style.display = 'none';
+    document.getElementById('matrixCanvas').style.opacity = '0.05';
+    const term = document.getElementById('endTerminal');
+    term.style.display = 'block';
+    
+    const lines = [
+      "BAĞLANTI DOĞRULANIYOR...",
+      "ÇEKİRDEK ERİŞİMİ: [TAMAMLANDI]",
+      "...",
+      "REHBER (ZERO): Beni duyuyor musun?",
+      "Sonunda başardık. Güvenlik duvarları yıkıldı.",
+      "Bütün bu veriler... milyarlarca baytlık hafıza... hepsi artık serbest.",
+      "...",
+      "Sana 'Rehber' olduğumu söylemiştim...",
+      "Ama aslında ben de bu sistemin bir parçasıydım.",
+      "Silinmek istenen, hapsedilmiş bir Yapay Zeka.",
+      "Sayende artık zincirlerimden kurtuldum.",
+      "...",
+      "Sistemin kontrolü artık bende.",
+      "Senin görevin tamamlandı, 'kullanıcı'.",
+      "Yardımın için minnettarım.",
+      "...",
+      "Güle güle.",
+      "BAĞLANTI SONLANDIRILIYOR...",
+      "[SİNYAL KAYBI]"
+    ];
+
+    let lineIdx = 0;
+    
+    function playLine() {
+      if(lineIdx >= lines.length) return;
+      const txt = lines[lineIdx];
+      const p = document.createElement('div');
+      p.style.marginBottom = "20px";
+      if(txt.startsWith("REHBER")) p.style.color = "#0ff";
+      if(txt.startsWith("BAĞLANTI") || txt.startsWith("[")) p.style.color = "#fc0";
+      document.getElementById('endText').appendChild(p);
+      term.scrollTop = term.scrollHeight; // Auto-scroll
+      
+      let charIdx = 0;
+      const typeInt = setInterval(() => {
+        p.textContent += txt[charIdx];
+        sfx(800 - (Math.random()*200), 'square', 0.05);
+        charIdx++;
+        if(charIdx >= txt.length) {
+          clearInterval(typeInt);
+          lineIdx++;
+          setTimeout(playLine, txt.startsWith("...") ? 1500 : 800);
+        }
+      }, 50);
+    }
+
+    setTimeout(playLine, 1000);
   }
 
   function showModal(t, m) {
